@@ -61,7 +61,7 @@ def _download(vid_id, output_fn, sr):
               help='Wave sample rate.',
               type=int)
 def download_videos(dataset_path, replace=False, remove_bad=True, sr=16000):
-
+    """Download videos in VoxCelebv1"""
     yt_folders = glob.glob(os.path.join(dataset_path, '*', '*'))
 
     for fn in tqdm.tqdm(yt_folders):
