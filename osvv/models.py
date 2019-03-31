@@ -4,10 +4,12 @@ Voice Verification Models
 Many snippets borrowed from:
 https://github.com/akshaysharma096/Siamese-Networks/
 """
-from keras.models import Sequential
+from keras.models import Sequential, Model
 from keras.regularizers import l2
 from keras.optimizers import Adam
-from keras.layers import Input, Lambda
+from keras.layers import Input, Lambda, Dense, MaxPooling2D, Conv2D, Flatten
+import keras.backend as K
+import numpy as np
 
 
 def _init_weights(shape, name=None):
@@ -21,23 +23,23 @@ def _init_bias(shape, name=None):
 def create_feature_model(input_shape):
 
     model = Sequential()
-    # TODO model for audio data
-    # model.add(Conv2D(64, (10,10), activation='relu', input_shape=input_shape,
-    #                kernel_initializer=_init_weights, kernel_regularizer=l2(2e-4)))
-    # model.add(MaxPooling2D())
-    # model.add(Conv2D(128, (7,7), activation='relu',
-    #                  kernel_initializer=_init_weights,
-    #                  bias_initializer=_init_bias, kernel_regularizer=l2(2e-4)))
-    # model.add(MaxPooling2D())
-    # model.add(Conv2D(128, (4,4), activation='relu', kernel_initializer=_init_weights,
-    #                  bias_initializer=_init_bias, kernel_regularizer=l2(2e-4)))
-    # model.add(MaxPooling2D())
-    # model.add(Conv2D(256, (4,4), activation='relu', kernel_initializer=_init_weights,
-    #                  bias_initializer=_init_bias, kernel_regularizer=l2(2e-4)))
-    # model.add(Flatten())
-    # model.add(Dense(4096, activation='sigmoid',
-    #                 kernel_regularizer=l2(1e-3),
-    #                 kernel_initializer=_init_weights, bias_initializer=_init_weights))
+    # TODO optimize for mfcc data / "images"
+    model.add(Conv2D(64, (10,10), activation='relu', input_shape=input_shape,
+                   kernel_initializer=_init_weights, kernel_regularizer=l2(2e-4)))
+    model.add(MaxPooling2D())
+    model.add(Conv2D(128, (7,7), activation='relu',
+                     kernel_initializer=_init_weights,
+                     bias_initializer=_init_bias, kernel_regularizer=l2(2e-4)))
+    model.add(MaxPooling2D())
+    model.add(Conv2D(128, (4,4), activation='relu', kernel_initializer=_init_weights,
+                     bias_initializer=_init_bias, kernel_regularizer=l2(2e-4)))
+    model.add(MaxPooling2D())
+    model.add(Conv2D(256, (4,4), activation='relu', kernel_initializer=_init_weights,
+                     bias_initializer=_init_bias, kernel_regularizer=l2(2e-4)))
+    model.add(Flatten())
+    model.add(Dense(256, activation='sigmoid',
+                    kernel_regularizer=l2(1e-3),
+                    kernel_initializer=_init_weights, bias_initializer=_init_weights))
 
     return model
 
@@ -62,3 +64,10 @@ def make_siamese(input_shape, feat_model, compile=True):
         siamese_model.compile(loss='binary_crossentropy', optimizer=optimizer)
 
     return siamese_model
+
+
+def make_vox_model():
+    shape = (300, 400, 1)
+    feat_model = create_feature_model(shape)
+    model = make_siamese(shape, feat_model)
+    return model
