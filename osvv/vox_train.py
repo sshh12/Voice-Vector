@@ -1,7 +1,7 @@
 """
 Training
 
-Generater adapted from:
+Generator adapted from:
 https://stanford.edu/~shervine/blog/keras-how-to-generate-data-on-the-fly
 """
 from keras.callbacks import ModelCheckpoint
@@ -20,7 +20,7 @@ from models import make_vox_model
 
 class VoxCelebDataGenerator(Sequence):
 
-    def __init__(self, dataset_path, vox_ids, batch_size=16, batches_per_epoch=10):
+    def __init__(self, dataset_path, vox_ids, batch_size=16, batches_per_epoch=32):
         self.path = dataset_path
         self.vox_ids = vox_ids
         self.batch_size = batch_size
@@ -50,8 +50,7 @@ class VoxCelebDataGenerator(Sequence):
 
         y[self.batch_size//2:] = 1
 
-        # TODO replace=False
-        ids = np.random.choice(self.vox_ids, size=(self.batch_size,), replace=True)
+        ids = np.random.choice(self.vox_ids, size=(self.batch_size,), replace=False)
 
         for i in range(self.batch_size):
 
@@ -82,8 +81,7 @@ def _pick_random_other(value, all_values):
     other_idx = all_values.index(value) + np.random.randint(1, num_vals)
     return all_values[other_idx % num_vals]
 
-# TODO val_split=0.7
-def _get_train_dev_ids(dataset_path, shuffle=True, val_split=0.5):
+def _get_train_dev_ids(dataset_path, shuffle=True, val_split=0.7):
 
     vox_ids = []
     for fn in glob.glob(os.path.join(dataset_path, '*', FEATS_FN)):
@@ -116,14 +114,17 @@ def _get_train_dev_ids(dataset_path, shuffle=True, val_split=0.5):
               type=click.Path())
 def train(dataset_path, epochs=20, batch_size=16, weights_path='weights'):
 
+    print('Finding Ids...', end='')
     train_ids, dev_ids = _get_train_dev_ids(dataset_path)
+    print('found {}+{}'.format(len(train_ids), len(dev_ids)))
 
     train_gen = VoxCelebDataGenerator(dataset_path, train_ids, batch_size)
     val_gen = VoxCelebDataGenerator(dataset_path, dev_ids, batch_size)
 
     model = make_vox_model()
 
-    save_checkpoint = ModelCheckpoint(os.path.join(weights_path, 'siamese-{epoch:02d}-{val_loss:.3f}.h5'))
+    save_checkpoint = ModelCheckpoint(os.path.join(weights_path, 'siamese-{epoch:02d}-{val_loss:.3f}.h5'),
+                                      monitor='val_loss', save_best_only=True)
 
     model.fit_generator(generator=train_gen,
                         validation_data=val_gen,

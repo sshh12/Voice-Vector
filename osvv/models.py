@@ -23,11 +23,10 @@ def _init_bias(shape, name=None):
 def create_feature_model(input_shape):
 
     model = Sequential()
-    # TODO optimize for mfcc data / "images"
-    model.add(Conv2D(64, (10,10), activation='relu', input_shape=input_shape,
+    model.add(Conv2D(64, (17,17), activation='relu', input_shape=input_shape,
                    kernel_initializer=_init_weights, kernel_regularizer=l2(2e-4)))
     model.add(MaxPooling2D())
-    model.add(Conv2D(128, (7,7), activation='relu',
+    model.add(Conv2D(128, (9,9), activation='relu',
                      kernel_initializer=_init_weights,
                      bias_initializer=_init_bias, kernel_regularizer=l2(2e-4)))
     model.add(MaxPooling2D())
@@ -44,7 +43,7 @@ def create_feature_model(input_shape):
     return model
 
 
-def make_siamese(input_shape, feat_model, compile=True):
+def make_siamese(input_shape, feat_model, compile_model=True):
 
     a_input = Input(input_shape)
     b_input = Input(input_shape)
@@ -59,7 +58,7 @@ def make_siamese(input_shape, feat_model, compile=True):
 
     siamese_model = Model(inputs=[a_input, b_input], outputs=pred)
 
-    if compile:
+    if compile_model:
         optimizer = Adam(lr=0.00006)
         siamese_model.compile(loss='binary_crossentropy', optimizer=optimizer)
 
