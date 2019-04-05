@@ -81,7 +81,7 @@ def _pick_random_other(value, all_values):
     other_idx = all_values.index(value) + np.random.randint(1, num_vals)
     return all_values[other_idx % num_vals]
 
-def _get_train_dev_ids(dataset_path, shuffle=True, val_split=0.7):
+def _get_train_dev_ids(dataset_path, shuffle=True, val_split=0.8):
 
     vox_ids = []
     for fn in glob.glob(os.path.join(dataset_path, '*', FEATS_FN)):
@@ -115,7 +115,7 @@ def _get_train_dev_ids(dataset_path, shuffle=True, val_split=0.7):
 def train(dataset_path, epochs=20, batch_size=16, weights_path='weights'):
 
     print('Finding Ids...', end='')
-    train_ids, dev_ids = _get_train_dev_ids(dataset_path)
+    dev_ids, train_ids = _get_train_dev_ids(dataset_path)
     print('found {}+{}'.format(len(train_ids), len(dev_ids)))
 
     train_gen = VoxCelebDataGenerator(dataset_path, train_ids, batch_size)

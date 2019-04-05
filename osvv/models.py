@@ -4,12 +4,14 @@ Voice Verification Models
 Many snippets borrowed from:
 https://github.com/akshaysharma096/Siamese-Networks/
 """
-from keras.models import Sequential, Model
+from keras.utils.generic_utils import get_custom_objects
+from keras.models import Sequential, Model, load_model
 from keras.regularizers import l2
 from keras.optimizers import Adam
 from keras.layers import Input, Lambda, Dense, MaxPooling2D, Conv2D, Flatten
 import keras.backend as K
 import numpy as np
+import click
 
 
 def _init_weights(shape, name=None):
@@ -18,6 +20,12 @@ def _init_weights(shape, name=None):
 
 def _init_bias(shape, name=None):
     return np.random.normal(loc=0.5, scale=1e-2, size=shape)
+
+
+get_custom_objects().update({
+    '_init_weights': lambda: _init_weights,
+    '_init_bias': lambda: _init_bias
+})
 
 
 def create_feature_model(input_shape):
@@ -70,3 +78,27 @@ def make_vox_model():
     feat_model = create_feature_model(shape)
     model = make_siamese(shape, feat_model)
     return model
+
+
+@click.command()
+@click.option('--model_path',
+              required=True,
+              help='Keras model (from training).',
+              type=click.Path())
+@click.option('--save_model',
+              default='vvmodel.h5',
+              help='Where to save new model.',
+              type=click.Path())
+def siamese_to_feature_model(model_path, save_model):
+
+    siamese_model = load_model(model_path)
+
+    input_layer = siamese_model.layers[2].get_input_at(0)
+    output_layer = siamese_model.layers[2].get_output_at(0)
+
+    feat_model = Model(inputs=input_layer, outputs=output_layer)
+    feat_model.save(save_model)
+
+
+if __name__ == '__main__':
+    siamese_to_feature_model()
