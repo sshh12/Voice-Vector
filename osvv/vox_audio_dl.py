@@ -15,15 +15,14 @@ YDL_OPTS = {
     'format': 'bestaudio/best',
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',
-        'preferredcodec': 'wav',
-        'preferredquality': '192'
+        'preferredcodec': 'wav'
     }],
     'postprocessor_args': [
-        '-ar', None
+        '-ar', 16000
     ],
     'prefer_ffmpeg': True,
     'keepvideo': True,
-    'quiet': True
+    'verbose': False
 }
 
 

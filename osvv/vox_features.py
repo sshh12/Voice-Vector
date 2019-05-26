@@ -3,7 +3,7 @@ Compute audio features from wav files.
 
 set VOXCELEB1_PATH=/path/to/dataset
 """
-from multiprocessing import Pool, Lock
+from multiprocessing import Pool
 import numpy as np
 import random
 import pickle
@@ -15,41 +15,43 @@ import os
 from utils import melspec, read_wav, read_vox_txt
 
 
-FEATS_FN = 'data.feats.pkl'
-WRITE_LOCK = Lock()
+FPS = 25                                         # VoxCelebv1 dataset FPS
+RATE = 16000                                     # Assume 16k sample rate
+SECS_PER_EXAMPLE = 2                             # Training example size in seconds
+FRAMES_PER_EXAMPLE = SECS_PER_EXAMPLE * FPS      # Number of video frames per example
+SPEC_PER_SEC = 126                               # Number of spectrogram vectors per second
+FRAME_TO_SPEC = (1 / FPS) * RATE / SPEC_PER_SEC  # Convert frame number to spectrogram index
 
 
 def _compute(wav_fn, save=True, window_size=300):
 
     vid_dir = os.path.dirname(wav_fn)
+    vox_id, vid_id = vid_dir.split(os.sep)[-2:]
     audio_data = read_wav(wav_fn)
     spec_data = melspec(audio_data)
 
     feats = []
 
     for txt_fn in glob.iglob(os.path.join(vid_dir, '*.txt')):
-        
+
         props, frames = read_vox_txt(txt_fn)
         start_frame, end_frame = frames[0], frames[-1]
-        
-        # TODO find where this `5` comes from
-        # sorta computed from ~ len(spec_data) / (vid_seconds * fps)
-        start_frame *= 5
-        end_frame *= 5
-        
-        # add every other window of data
-        for i in range(start_frame, end_frame - window_size * 2, window_size * 2):
-            feats.append(spec_data[i:i+window_size])
+
+        for i in range(start_frame, end_frame, FRAMES_PER_EXAMPLE):
+            start_spec = int(i * FRAME_TO_SPEC)
+            end_spec = start_spec + SPEC_PER_SEC * SECS_PER_EXAMPLE
+            spec_segment = spec_data[:, start_spec:end_spec]
+            if 0 in spec_segment.shape:
+                break
+            feats.append(spec_segment)
 
     if save:
-        save_fn = os.path.join(vid_dir, os.pardir, FEATS_FN)
-        with WRITE_LOCK:
-            if os.path.exists(save_fn):
-                with open(save_fn, 'rb') as save_data:
-                    feats.extend(pickle.load(save_data))
-            with open(save_fn, 'wb') as save_data:
-                pickle.dump(feats, save_data)
-                
+        save_fn = os.path.join(vid_dir, '{}.{}.pkl'.format(vid_id, vox_id))
+        if os.path.exists(save_fn):
+            print(save_fn, 'already exists...replacing it.')
+        with open(save_fn, 'wb') as save_data:
+            pickle.dump(feats, save_data)
+
     return feats
 
 
@@ -94,15 +96,6 @@ def compute_features(dataset_path, processes=1, max_feats=20, max_wavs=5000):
         for i in pool.imap(_compute, wav_files):
             bar.update()
 
-    # reduce feat file size by randomly removing features
-    if max_feats > 0:
-
-        feat_files = glob.glob(os.path.join(dataset_path, '*', FEATS_FN))
-
-        bar = tqdm.tqdm(total=len(feat_files), desc='Feature Files', unit='feats.pkl')
-        with Pool(processes=processes) as pool:
-            for i in pool.starmap(_trim_features, zip(feat_files, [max_feats] * len(feat_files))):
-                bar.update()
 
 if __name__ == '__main__':
     compute_features()

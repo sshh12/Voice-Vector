@@ -34,7 +34,7 @@ def read_wav(fn, mono=True):
     return sig.astype(np.float32)
 
 
-def melspec(data, sr=16000, normalize=True, transpose=True):
+def melspec(data, sr=16000, normalize=True):
     """Compute melspectrogram from raw audio signal"""
     raw_mel = melspectrogram(y=data, sr=sr,
                              n_mels=416, fmax=4000,
@@ -44,9 +44,7 @@ def melspec(data, sr=16000, normalize=True, transpose=True):
     feat = feat[:-16, :]
 
     if normalize:
-        feat = (feat - 0.375818) / 0.192636
-
-    if transpose:
-        feat = feat.T
+        # Precomputed
+        feat = (feat - 0.643) / 0.094
 
     return feat
