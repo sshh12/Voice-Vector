@@ -14,6 +14,9 @@ import numpy as np
 import click
 
 
+INPUT_SHAPE = (400, 252, 1)
+
+
 def _init_weights(shape, name=None):
     return np.random.normal(loc=0.0, scale=1e-2, size=shape)
 
@@ -31,17 +34,17 @@ get_custom_objects().update({
 def create_feature_model(input_shape):
 
     model = Sequential()
-    model.add(Conv2D(64, (17,17), activation='relu', input_shape=input_shape,
+    model.add(Conv2D(64, (11, 11), activation='relu', input_shape=input_shape,
                    kernel_initializer=_init_weights, kernel_regularizer=l2(2e-4)))
     model.add(MaxPooling2D())
-    model.add(Conv2D(128, (9,9), activation='relu',
+    model.add(Conv2D(128, (7, 7), activation='relu',
                      kernel_initializer=_init_weights,
                      bias_initializer=_init_bias, kernel_regularizer=l2(2e-4)))
     model.add(MaxPooling2D())
-    model.add(Conv2D(128, (4,4), activation='relu', kernel_initializer=_init_weights,
+    model.add(Conv2D(128, (5, 5), activation='relu', kernel_initializer=_init_weights,
                      bias_initializer=_init_bias, kernel_regularizer=l2(2e-4)))
     model.add(MaxPooling2D())
-    model.add(Conv2D(256, (4,4), activation='relu', kernel_initializer=_init_weights,
+    model.add(Conv2D(256, (3, 3), activation='relu', kernel_initializer=_init_weights,
                      bias_initializer=_init_bias, kernel_regularizer=l2(2e-4)))
     model.add(Flatten())
     model.add(Dense(256, activation='sigmoid',
@@ -67,16 +70,15 @@ def make_siamese(input_shape, feat_model, compile_model=True):
     siamese_model = Model(inputs=[a_input, b_input], outputs=pred)
 
     if compile_model:
-        optimizer = Adam(lr=0.00006)
+        optimizer = Adam(lr=0.0001)
         siamese_model.compile(loss='binary_crossentropy', optimizer=optimizer)
 
     return siamese_model
 
 
 def make_vox_model():
-    shape = (300, 400, 1)
-    feat_model = create_feature_model(shape)
-    model = make_siamese(shape, feat_model)
+    feat_model = create_feature_model(INPUT_SHAPE)
+    model = make_siamese(INPUT_SHAPE, feat_model)
     return model
 
 

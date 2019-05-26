@@ -52,7 +52,7 @@ def _download(vid_id, output_fn, sr):
               help='Replace already downloaded wavs.',
               type=bool)
 @click.option('--remove_bad',
-              default=True,
+              default=False,
               help='Delete folders of bad video links.',
               type=bool)
 @click.option('--sr',
@@ -62,6 +62,9 @@ def _download(vid_id, output_fn, sr):
 def download_videos(dataset_path, replace=False, remove_bad=True, sr=16000):
     """Download videos in VoxCelebv1"""
     yt_folders = glob.glob(os.path.join(dataset_path, '*', '*'))
+
+    # only 16k supported
+    assert sr == 16000
 
     for fn in tqdm.tqdm(yt_folders):
 

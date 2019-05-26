@@ -6,6 +6,7 @@ https://stanford.edu/~shervine/blog/keras-how-to-generate-data-on-the-fly
 """
 from keras.callbacks import ModelCheckpoint
 from keras.utils import Sequence
+from collections import defaultdict
 import numpy as np
 import functools
 import pickle
@@ -14,17 +15,20 @@ import click
 import glob
 import os
 
-from vox_features import FEATS_FN
 from models import make_vox_model
+
+
+INPUT_SHAPE = (400, 252, 1)
 
 
 class VoxCelebDataGenerator(Sequence):
 
-    def __init__(self, dataset_path, vox_ids, batch_size=16, batches_per_epoch=32):
+    def __init__(self, dataset_path, vox_ids, vox_paths, batch_size=16):
         self.path = dataset_path
         self.vox_ids = vox_ids
+        self.vox_paths = vox_paths
         self.batch_size = batch_size
-        self.batches_per_epoch = batches_per_epoch
+        self.batches_per_epoch = max(len(vox_ids) * 2 // batch_size, 1)
         self.on_epoch_end()
 
     def __len__(self):
@@ -38,19 +42,23 @@ class VoxCelebDataGenerator(Sequence):
         pass
 
     def _load_random_feat(self, vox_id):
-        feats_path = os.path.join(self.path, vox_id, FEATS_FN)
+        feats_path = random.choice(self.vox_paths[vox_id])
         feats = _load_features(feats_path)
-        return random.choice(feats).reshape(300, 400, 1)
+        if len(feats) == 0:
+            return self._load_random_feat(vox_id)
+        else:
+            feat = random.choice(feats)
+            return feat.reshape(*INPUT_SHAPE)
 
     def _bake_batch(self):
 
-        XA = np.zeros((self.batch_size, 300, 400, 1))
-        XB = np.zeros((self.batch_size, 300, 400, 1))
+        XA = np.zeros((self.batch_size, *INPUT_SHAPE))
+        XB = np.zeros((self.batch_size, *INPUT_SHAPE))
         y = np.zeros((self.batch_size,), dtype=int)
 
         y[self.batch_size//2:] = 1
 
-        ids = np.random.choice(self.vox_ids, size=(self.batch_size,), replace=False)
+        ids = np.random.choice(self.vox_ids, size=(self.batch_size,), replace=True)
 
         for i in range(self.batch_size):
 
@@ -70,7 +78,7 @@ class VoxCelebDataGenerator(Sequence):
         return XA, XB, y
 
 
-@functools.lru_cache(128)
+@functools.lru_cache(256)
 def _load_features(feats_fn):
     with open(feats_fn, 'rb') as feats_file:
         return pickle.load(feats_file)
@@ -83,16 +91,18 @@ def _pick_random_other(value, all_values):
 
 def _get_train_dev_ids(dataset_path, shuffle=True, val_split=0.8):
 
-    vox_ids = []
-    for fn in glob.glob(os.path.join(dataset_path, '*', FEATS_FN)):
-        fn_parts = fn.split('\\')
-        vox_ids.append(fn_parts[-2])
+    vox_data = defaultdict(list)
+    for fn in glob.glob(os.path.join(dataset_path, '*', '*', '*.pkl')):
+        # VoxCeleb\v1\txt\<vox_id>\<vid_id>\<vid_id>.<vox_id>.pkl
+        vox_id = fn.split('.')[-2]
+        vox_data[vox_id].append(fn)
+    vox_ids = list(vox_data)
 
     if shuffle:
         random.shuffle(vox_ids)
 
     split_idx = int(len(vox_ids) * val_split)
-    return vox_ids[split_idx:], vox_ids[:split_idx]
+    return vox_ids[:split_idx], vox_ids[split_idx:], vox_data
 
 
 @click.command()
@@ -105,25 +115,25 @@ def _get_train_dev_ids(dataset_path, shuffle=True, val_split=0.8):
               help='Epochs.',
               type=int)
 @click.option('--batch_size',
-              default=16,
+              default=32,
               help='Batch size.',
               type=int)
-@click.option('--weights_path',
+@click.option('--weights_folder',
               default='weights',
               help='Path to save weights.',
               type=click.Path())
-def train(dataset_path, epochs=20, batch_size=16, weights_path='weights'):
+def train(dataset_path, epochs=20, batch_size=32, weights_folder='weights'):
 
     print('Finding Ids...', end='')
-    dev_ids, train_ids = _get_train_dev_ids(dataset_path)
+    train_ids, dev_ids, vox_paths = _get_train_dev_ids(dataset_path)
     print('found {}+{}'.format(len(train_ids), len(dev_ids)))
 
-    train_gen = VoxCelebDataGenerator(dataset_path, train_ids, batch_size)
-    val_gen = VoxCelebDataGenerator(dataset_path, dev_ids, batch_size)
+    train_gen = VoxCelebDataGenerator(dataset_path, train_ids, vox_paths, batch_size)
+    val_gen = VoxCelebDataGenerator(dataset_path, dev_ids, vox_paths, batch_size)
 
     model = make_vox_model()
 
-    save_checkpoint = ModelCheckpoint(os.path.join(weights_path, 'siamese-{epoch:02d}-{val_loss:.3f}.h5'),
+    save_checkpoint = ModelCheckpoint(os.path.join(weights_folder, 'siamese-{epoch:02d}-{val_loss:.3f}.h5'),
                                       monitor='val_loss', save_best_only=True)
 
     model.fit_generator(generator=train_gen,

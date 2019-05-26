@@ -41,11 +41,11 @@ def _compute(wav_fn, save=True, window_size=300):
             start_spec = int(i * FRAME_TO_SPEC)
             end_spec = start_spec + SPEC_PER_SEC * SECS_PER_EXAMPLE
             spec_segment = spec_data[:, start_spec:end_spec]
-            if 0 in spec_segment.shape:
+            if spec_segment.shape != (400, SPEC_PER_SEC * SECS_PER_EXAMPLE):
                 break
             feats.append(spec_segment)
 
-    if save:
+    if save and len(feats) > 0:
         save_fn = os.path.join(vid_dir, '{}.{}.pkl'.format(vid_id, vox_id))
         if os.path.exists(save_fn):
             print(save_fn, 'already exists...replacing it.')
