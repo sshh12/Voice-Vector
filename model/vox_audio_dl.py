@@ -62,7 +62,9 @@ def _download(vid_id, output_fn, sr):
               type=int)
 def download_videos(dataset_path, replace=False, remove_bad=True, sr=16000):
     """Download videos in VoxCelebv1"""
+    print('Finding YouTube video paths...', end='')
     yt_folders = glob.glob(os.path.join(dataset_path, '*', '*'))
+    print('done.')
     
     # only 16k supported
     assert sr == 16000
