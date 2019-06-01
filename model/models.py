@@ -4,7 +4,6 @@ Voice Verification Models
 Many snippets borrowed from:
 https://github.com/akshaysharma096/Siamese-Networks/
 """
-from keras.utils.generic_utils import get_custom_objects
 from keras.models import Sequential, Model, load_model
 from keras.regularizers import l2
 from keras.optimizers import Adam
@@ -17,26 +16,7 @@ import click
 INPUT_SHAPE = (252, 400, 1)
 
 
-def _init_weights(shape, name=None):
-    return np.random.normal(loc=0.0, scale=1e-2, size=shape)
-
-
-def _init_bias(shape, name=None):
-    return np.random.normal(loc=0.5, scale=1e-2, size=shape)
-
-
-get_custom_objects().update({
-    '_init_weights': lambda: _init_weights,
-    '_init_bias': lambda: _init_bias
-})
-
-
 def _add_conv_block(model, filters, size, **kwargs):
-    # model.add(Conv2D(filters, (size, size),
-    #                  activation='relu',
-    #                  input_shape=input_shape,
-    #                  kernel_initializer=_init_weights,
-    #                  kernel_regularizer=l2(2e-4)))
     model.add(Conv2D(filters, (size, size),
                      activation='relu',
                      kernel_regularizer=l2(2e-4),
@@ -91,11 +71,11 @@ def get_siamese_model():
               help='Keras model (from training).',
               type=click.Path())
 @click.option('--save_model',
-              default='vvmodel.h5',
+              default='vv_model.h5',
               help='Where to save new model.',
               type=click.Path())
 def siamese_to_feature_model(model_path, save_model):
-
+    """Convert the siamese architecture to a feature detector"""
     siamese_model = load_model(model_path)
 
     input_layer = siamese_model.layers[2].get_input_at(0)

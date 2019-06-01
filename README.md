@@ -17,9 +17,12 @@
 ##### Training with VoxCeleb1
 
 1. Download [VoxCelebv1](http://www.robots.ox.ac.uk/~vgg/data/voxceleb/vox1.html)
-2. Set `VOXCELEB1_PATH` to where its saved (`ls` in this path should product a list of ids)
-3. `pip install -r model/requirements.txt`
-4. `python model\vox_audio_dl.py`
+2. Set `VOXCELEB1_PATH` to where its saved (`ls` in this path should produce a list of ids)
+3. `pip install -r model/train-requirements.txt`
+4. Download audio files and convert them to wavs `python model\vox_audio_dl.py`
+5. Compute and save spectrograms `python model\vox_features.py --processes 4`
+6. Train `python model\vox_train.py --epochs 1000 --batch_size 32 --run_name run1`
+7. Convert the training model into an embeddings model `python model\models.py --model_path weights\siamese-xx-xxxx.h5 --save_model my_vv_model.h5`
 
 ## Related
 

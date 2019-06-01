@@ -83,10 +83,12 @@ class VoxCelebDataGenerator(Sequence):
 
 @functools.lru_cache(FEATURE_CACHE_SIZE)
 def _load_features(feats_fn):
+    """Load and normalize spectrograms from fn"""
     return (np.load(feats_fn) - SPEC_MEAN) / SPEC_STD
 
 
 def _pick_random_other(value, all_values):
+    """Pick a value from `all_values` thats not `value`"""
     num_vals = len(all_values)
     other_idx = all_values.index(value) + np.random.randint(1, num_vals)
     return all_values[other_idx % num_vals]
@@ -135,7 +137,11 @@ def _get_model(weights_folder):
               default='weights',
               help='Path to save weights.',
               type=click.Path())
-def train(dataset_path, epochs=20, batch_size=32, weights_folder='weights'):
+@click.option('--run_name',
+              default='run',
+              help='Name of the logs subdirectory.',
+              type=str)
+def train(dataset_path, epochs=20, batch_size=32, weights_folder='weights', run_name='run'):
 
     print('Finding Ids...', end='')
     train_ids, dev_ids, vox_paths = _get_train_dev_ids(dataset_path)
@@ -149,13 +155,16 @@ def train(dataset_path, epochs=20, batch_size=32, weights_folder='weights'):
     save_checkpoint = ModelCheckpoint(os.path.join(weights_folder, 'siamese-{epoch:02d}-{val_loss:.3f}.h5'),
                                       monitor='val_loss', save_best_only=True)
     lr_plateau = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10)
-    tf_board = TensorBoard(log_dir='./logs')
+    tf_board = TensorBoard(log_dir=os.path.join('logs', run_name))
+
+    os.makedirs(weights_folder, exist_ok=True)
 
     model.fit_generator(generator=train_gen,
                         validation_data=val_gen,
                         epochs=epochs,
                         workers=4,
                         callbacks=[save_checkpoint, lr_plateau, tf_board])
+
 
 if __name__ == '__main__':
     train()

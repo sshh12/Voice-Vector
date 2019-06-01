@@ -1,6 +1,9 @@
 """
 Compute audio features from wav files.
 
+Features are saved as numpy arrays (*.npy) in the save
+directory as VoxCeleb1.
+
 set VOXCELEB1_PATH=/path/to/dataset
 """
 from multiprocessing import Pool
@@ -59,18 +62,6 @@ def _compute(wav_fn, save=True):
     return feats
 
 
-def _trim_features(feat_fn, max_feats):
-
-    with open(feat_fn, 'rb') as feat_data:
-        feats = pickle.load(feat_data)
-
-    random.shuffle(feats)
-    feats = feats[:max_feats]
-
-    with open(feat_fn, 'wb') as feat_data:
-        pickle.dump(feats, feat_data)
-
-
 @click.command()
 @click.option('--dataset_path',
               default=os.environ.get('VOXCELEB1_PATH', '.'),
@@ -80,15 +71,11 @@ def _trim_features(feat_fn, max_feats):
               default=1,
               help='Number of processes to use (0 for max)',
               type=int)
-@click.option('--max_feats',
-              default=20,
-              help='Limit number of features stored per id (0 for no limit)',
-              type=int)
 @click.option('--max_wavs',
               default=5000,
               help='Limit number of wave files that will have features computed',
               type=int)
-def compute_features(dataset_path, processes=1, max_feats=20, max_wavs=5000):
+def compute_features(dataset_path, processes=1,  max_wavs=10000):
     """Convert wav to audio features"""
     if processes <= 0:
         processes = None
