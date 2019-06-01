@@ -6,7 +6,6 @@ set VOXCELEB1_PATH=/path/to/dataset
 from multiprocessing import Pool
 import numpy as np
 import random
-import pickle
 import click
 import glob
 import tqdm
@@ -21,12 +20,18 @@ SECS_PER_EXAMPLE = 2                             # Training example size in seco
 FRAMES_PER_EXAMPLE = SECS_PER_EXAMPLE * FPS      # Number of video frames per example
 SPEC_PER_SEC = 126                               # Number of spectrogram vectors per second
 FRAME_TO_SPEC = (1 / FPS) * RATE / SPEC_PER_SEC  # Convert frame number to spectrogram index
+FEATURES_FOLDER = '_data'
 
 
-def _compute(wav_fn, save=True, window_size=300):
+def _compute(wav_fn, save=True):
 
     vid_dir = os.path.dirname(wav_fn)
     vox_id, vid_id = vid_dir.split(os.sep)[-2:]
+    save_fn = os.path.join(vid_dir, os.pardir, os.pardir, FEATURES_FOLDER, '{}.{}.npy'.format(vid_id, vox_id))
+
+    if save and os.path.exists(save_fn):
+        return np.load(save_fn)
+
     audio_data = read_wav(wav_fn)
     spec_data = melspec(audio_data)
 
@@ -40,17 +45,16 @@ def _compute(wav_fn, save=True, window_size=300):
         for i in range(start_frame, end_frame, FRAMES_PER_EXAMPLE):
             start_spec = int(i * FRAME_TO_SPEC)
             end_spec = start_spec + SPEC_PER_SEC * SECS_PER_EXAMPLE
-            spec_segment = spec_data[:, start_spec:end_spec]
-            if spec_segment.shape != (400, SPEC_PER_SEC * SECS_PER_EXAMPLE):
+            spec_segment = np.transpose(spec_data[:, start_spec:end_spec])
+            if spec_segment.shape != (SPEC_PER_SEC * SECS_PER_EXAMPLE, 400):
                 break
             feats.append(spec_segment)
 
+    feats = np.array(feats)
+
     if save and len(feats) > 0:
-        save_fn = os.path.join(vid_dir, '{}.{}.pkl'.format(vid_id, vox_id))
-        if os.path.exists(save_fn):
-            print(save_fn, 'already exists...replacing it.')
-        with open(save_fn, 'wb') as save_data:
-            pickle.dump(feats, save_data)
+        os.makedirs(os.path.dirname(save_fn), exist_ok=True)
+        np.save(save_fn, feats)
 
     return feats
 
@@ -89,7 +93,9 @@ def compute_features(dataset_path, processes=1, max_feats=20, max_wavs=5000):
     if processes <= 0:
         processes = None
 
-    wav_files = glob.glob(os.path.join(dataset_path, '*', '*', '*.wav'))[:max_wavs]
+    print('Finding audio files...', end='')
+    wav_files = glob.glob(os.path.join(dataset_path, 'id*', '*', '*.wav'))[:max_wavs]
+    print('found', len(wav_files))
 
     bar = tqdm.tqdm(total=len(wav_files), desc='Audio Files', unit='wav')
     with Pool(processes=processes) as pool:

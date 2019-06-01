@@ -1,7 +1,7 @@
 # One Shot Voice Verification
 
 ### Training
-1. Download (VoxCelebv1)[http://www.robots.ox.ac.uk/~vgg/data/voxceleb/vox1.html]
+1. Download [VoxCelebv1](http://www.robots.ox.ac.uk/~vgg/data/voxceleb/vox1.html)
 2. Download YouTube videos (as wav) `python osvv/vox_audio_dl.py`
 3. Download compute features `python osvv/vox_features.py`
 4. Train `python osvv/vox_train.py --epoch xxx`

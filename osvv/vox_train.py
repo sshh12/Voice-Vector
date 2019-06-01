@@ -4,31 +4,34 @@ Training
 Generator adapted from:
 https://stanford.edu/~shervine/blog/keras-how-to-generate-data-on-the-fly
 """
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, TensorBoard
 from keras.utils import Sequence
+from keras.models import load_model
 from collections import defaultdict
 import numpy as np
 import functools
-import pickle
 import random
 import click
 import glob
 import os
 
-from models import make_vox_model
+from models import get_siamese_model
 
 
-INPUT_SHAPE = (400, 252, 1)
+INPUT_SHAPE = (252, 400, 1)
+SPEC_MEAN = 0.305
+SPEC_STD = 0.177
+FEATURE_CACHE_SIZE = 256
 
 
 class VoxCelebDataGenerator(Sequence):
 
-    def __init__(self, dataset_path, vox_ids, vox_paths, batch_size=16):
+    def __init__(self, dataset_path, vox_ids, vox_paths, batch_size=32):
         self.path = dataset_path
         self.vox_ids = vox_ids
         self.vox_paths = vox_paths
         self.batch_size = batch_size
-        self.batches_per_epoch = max(len(vox_ids) * 2 // batch_size, 1)
+        self.batches_per_epoch = max(len(vox_ids) // batch_size, 1)
         self.on_epoch_end()
 
     def __len__(self):
@@ -54,18 +57,18 @@ class VoxCelebDataGenerator(Sequence):
 
         XA = np.zeros((self.batch_size, *INPUT_SHAPE))
         XB = np.zeros((self.batch_size, *INPUT_SHAPE))
-        y = np.zeros((self.batch_size,), dtype=int)
 
-        y[self.batch_size//2:] = 1
+        # Binary array
+        y = np.random.randint(0, 2, (self.batch_size,))
 
-        ids = np.random.choice(self.vox_ids, size=(self.batch_size,), replace=True)
+        ids = np.random.choice(self.vox_ids, size=(self.batch_size,), replace=False)
 
         for i in range(self.batch_size):
 
             a_id = ids[i]
             a_feat = self._load_random_feat(a_id)
 
-            if i >= self.batch_size // 2:
+            if y[i] == 1:
                 b_id = a_id
             else:
                 b_id = _pick_random_other(a_id, self.vox_ids)
@@ -78,10 +81,9 @@ class VoxCelebDataGenerator(Sequence):
         return XA, XB, y
 
 
-@functools.lru_cache(256)
+@functools.lru_cache(FEATURE_CACHE_SIZE)
 def _load_features(feats_fn):
-    with open(feats_fn, 'rb') as feats_file:
-        return pickle.load(feats_file)
+    return (np.load(feats_fn) - SPEC_MEAN) / SPEC_STD
 
 
 def _pick_random_other(value, all_values):
@@ -89,11 +91,11 @@ def _pick_random_other(value, all_values):
     other_idx = all_values.index(value) + np.random.randint(1, num_vals)
     return all_values[other_idx % num_vals]
 
+
 def _get_train_dev_ids(dataset_path, shuffle=True, val_split=0.8):
 
     vox_data = defaultdict(list)
-    for fn in glob.glob(os.path.join(dataset_path, '*', '*', '*.pkl')):
-        # VoxCeleb\v1\txt\<vox_id>\<vid_id>\<vid_id>.<vox_id>.pkl
+    for fn in glob.iglob(os.path.join(dataset_path, '_data', '*.npy')):
         vox_id = fn.split('.')[-2]
         vox_data[vox_id].append(fn)
     vox_ids = list(vox_data)
@@ -103,6 +105,17 @@ def _get_train_dev_ids(dataset_path, shuffle=True, val_split=0.8):
 
     split_idx = int(len(vox_ids) * val_split)
     return vox_ids[:split_idx], vox_ids[split_idx:], vox_data
+
+
+def _get_model(weights_folder):
+
+    old_weights = {int(fn.split('-')[1]): fn for fn in glob.glob(os.path.join(weights_folder, '*.h5'))}
+    if len(old_weights) != 0:
+        latest_fn = old_weights[max(old_weights)]
+        if 'y' in input('Use prev weights from {}? (y/n): '.format(latest_fn)).lower():
+            return load_model(latest_fn)
+
+    return get_siamese_model()
 
 
 @click.command()
@@ -131,15 +144,18 @@ def train(dataset_path, epochs=20, batch_size=32, weights_folder='weights'):
     train_gen = VoxCelebDataGenerator(dataset_path, train_ids, vox_paths, batch_size)
     val_gen = VoxCelebDataGenerator(dataset_path, dev_ids, vox_paths, batch_size)
 
-    model = make_vox_model()
+    model = _get_model(weights_folder)
 
     save_checkpoint = ModelCheckpoint(os.path.join(weights_folder, 'siamese-{epoch:02d}-{val_loss:.3f}.h5'),
                                       monitor='val_loss', save_best_only=True)
+    lr_plateau = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10)
+    tf_board = TensorBoard(log_dir='./logs')
 
     model.fit_generator(generator=train_gen,
                         validation_data=val_gen,
                         epochs=epochs,
-                        callbacks=[save_checkpoint])
+                        workers=4,
+                        callbacks=[save_checkpoint, lr_plateau, tf_board])
 
 if __name__ == '__main__':
     train()

@@ -28,13 +28,17 @@ def read_vox_txt(data_fn):
 
 def read_wav(fn, mono=True):
     """Read audio data from wav file"""
-    _, sig = wav.read(fn)
+    sr, sig = wav.read(fn)
+
+    # Enforce sample rate
+    assert sr == 16000
+
     if mono and len(sig.shape) == 2:
         sig = sig[:, 0]
     return sig.astype(np.float32)
 
 
-def melspec(data, sr=16000, normalize=True):
+def melspec(data, sr=16000):
     """Compute melspectrogram from raw audio signal"""
     raw_mel = melspectrogram(y=data, sr=sr,
                              n_mels=416, fmax=4000,
@@ -42,9 +46,5 @@ def melspec(data, sr=16000, normalize=True):
     feat = power_to_db(raw_mel, ref=np.max)
     feat = 1 - (feat / -80.0)
     feat = feat[:-16, :]
-
-    if normalize:
-        # Precomputed
-        feat = (feat - 0.643) / 0.094
 
     return feat

@@ -14,7 +14,7 @@ import numpy as np
 import click
 
 
-INPUT_SHAPE = (400, 252, 1)
+INPUT_SHAPE = (252, 400, 1)
 
 
 def _init_weights(shape, name=None):
@@ -31,25 +31,28 @@ get_custom_objects().update({
 })
 
 
+def _add_conv_block(model, filters, size, **kwargs):
+    # model.add(Conv2D(filters, (size, size),
+    #                  activation='relu',
+    #                  input_shape=input_shape,
+    #                  kernel_initializer=_init_weights,
+    #                  kernel_regularizer=l2(2e-4)))
+    model.add(Conv2D(filters, (size, size),
+                     activation='relu',
+                     kernel_regularizer=l2(2e-4),
+                     **kwargs))
+    model.add(MaxPooling2D())
+
+
 def create_feature_model(input_shape):
 
     model = Sequential()
-    model.add(Conv2D(64, (11, 11), activation='relu', input_shape=input_shape,
-                   kernel_initializer=_init_weights, kernel_regularizer=l2(2e-4)))
-    model.add(MaxPooling2D())
-    model.add(Conv2D(128, (7, 7), activation='relu',
-                     kernel_initializer=_init_weights,
-                     bias_initializer=_init_bias, kernel_regularizer=l2(2e-4)))
-    model.add(MaxPooling2D())
-    model.add(Conv2D(128, (5, 5), activation='relu', kernel_initializer=_init_weights,
-                     bias_initializer=_init_bias, kernel_regularizer=l2(2e-4)))
-    model.add(MaxPooling2D())
-    model.add(Conv2D(256, (3, 3), activation='relu', kernel_initializer=_init_weights,
-                     bias_initializer=_init_bias, kernel_regularizer=l2(2e-4)))
+    _add_conv_block(model, 64, 11, input_shape=input_shape)
+    _add_conv_block(model, 128, 7)
+    _add_conv_block(model, 256, 5)
+    _add_conv_block(model, 256, 3)
     model.add(Flatten())
-    model.add(Dense(256, activation='sigmoid',
-                    kernel_regularizer=l2(1e-3),
-                    kernel_initializer=_init_weights, bias_initializer=_init_weights))
+    model.add(Dense(1024, activation='sigmoid'))
 
     return model
 
@@ -71,12 +74,12 @@ def make_siamese(input_shape, feat_model, compile_model=True):
 
     if compile_model:
         optimizer = Adam(lr=0.0001)
-        siamese_model.compile(loss='binary_crossentropy', optimizer=optimizer)
+        siamese_model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['acc'])
 
     return siamese_model
 
 
-def make_vox_model():
+def get_siamese_model():
     feat_model = create_feature_model(INPUT_SHAPE)
     model = make_siamese(INPUT_SHAPE, feat_model)
     return model
