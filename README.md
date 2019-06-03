@@ -61,6 +61,8 @@ plt.scatter(embs_2d[:, 0], embs_2d[:, 1], c=colors, marker='.')
 plt.show()
 ```
 
+![TSNE](https://user-images.githubusercontent.com/6625384/58771441-cf7b1d80-8579-11e9-917d-ad2cc898254f.png)
+
 ## DIY
 
 ##### Training with VoxCeleb1

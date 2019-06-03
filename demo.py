@@ -1,78 +1,102 @@
-from keras.models import load_model
-import matplotlib.pyplot as plt
+from mpldatacursor import datacursor # pip install mpldatacursor
+from sklearn.manifold import TSNE    # pip install scikit-learn
+import matplotlib.pyplot as plt      # pip install matplotlib
+import scipy.io.wavfile as wav       # pip install scipy
 from scipy.io import wavfile
-from osvv import models, utils
-from sklearn.manifold import TSNE
-import numpy as np
-import conv_vad
-from mpldatacursor import datacursor
+from tqdm import tqdm                # pip install tqdm
+import numpy as np                   # pip install numpy
+import voice_vector
 import csv
 import os
 
 
+# Path to the Common Voice dataset
 COMMONVOICE_PATH = os.environ.get('COMMONVOICE_PATH', 'commonvoice')
+ # A sample rate of 16k is required
+RATE = 16000
+# The current model uses 2 second frames of audio
+WINDOW_SIZE = 2
 
-model = load_model('vv_model.h5')
+# Create a embeddings generator and load the keras model
+voice_embs = voice_vector.VoiceEmbeddings()
 
-audio_files = []
-meta_data = []
-colors = []
+def common_voice_data():
+
+    audio_files, meta_data = [], []
+
+    with open(os.path.join(COMMONVOICE_PATH, 'dev.tsv'), 'r', encoding='utf-8') as tsv_file:
+
+        reader = csv.reader(tsv_file, delimiter='\t')
+
+        for row in reader:
+
+            path = row[1]
+            age, gender, accent = row[5:8]
+            if '' in [path, age, gender, accent] or path == 'path':
+                continue
+
+            # all the audio files were converted to a .wav
+            # with a sample rate of 16k and 1 channel
+            audio_files.append(os.path.join(COMMONVOICE_PATH, 'clips', path + '.wav'))
+            meta_data.append((age, gender, accent))
+
+    return audio_files, meta_data
+
+print('Finding Common Voice files...', end='')
+audio_files, meta_data = common_voice_data()
+print('found {}'.format(len(audio_files)))
+
+embs = []
+idxs = []
 labels = []
 
-with open(os.path.join(COMMONVOICE_PATH, 'dev.tsv'), 'r', encoding='utf-8') as tsv_file:
-    reader = csv.reader(tsv_file, delimiter='\t')
-    for row in reader:
-        path = row[1]
-        age, gender, accent = row[5:8]
-        if '' in [path, age, gender, accent] or path == 'path':
-            continue
-        audio_files.append(os.path.join(COMMONVOICE_PATH, 'clips', path + '.wav'))
-        meta_data.append((age, gender, accent))
+for i, audio_fn in tqdm(enumerate(audio_files), total=len(audio_files)):
 
-voice_vectors = []
+    # Read audio data as numpy array
+    audio_data = wav.read(audio_fn)[1].astype(np.uint16)
 
-print(len(audio_files))
-print(len(meta_data))
+    # Trim since speakers normally have a buffer before/after
+    audio_data = audio_data[1000:-1000]
 
-for i, audio_fn in enumerate(audio_files):
+    speaker_embs = []
 
-    audio_data = utils.read_wav(audio_fn)
-    spec_data = np.transpose(utils.melspec(audio_data))
-    spec_data = spec_data[100:-100,:]
+    for k in range(0, len(audio_data), RATE):
 
-    specs = []
-    for k in range(0, len(spec_data) - 252, 120):
-        data = spec_data[k:k+252,:].reshape(252, 400, 1)
-        specs.append(data)
-    specs = np.array(specs)
+        # Generate embeddings for subsections of audio file
+        audio_part = audio_data[i:i+RATE*WINDOW_SIZE]
+        if len(audio_part) != RATE * WINDOW_SIZE:
+            break
 
-    if 0 in specs.shape:
+        # Generate an embedding for this 2s of audio data
+        speaker_embs.append(voice_embs.get_vec(audio_part))
+
+    if len(speaker_embs) == 0:
         continue
 
-    out = model.predict(specs)
-
-    print(specs.shape, '->', out.shape)
-
-    voice_vectors.append(np.median(out, axis=0))
+    # Use the median embedding to represent the speaker
+    embs.append(np.median(speaker_embs, axis=0))
     labels.append(audio_fn)
+    idxs.append(i)
 
-    if meta_data[i][1] == 'female':
-        colors.append('r')
-    else:
-        colors.append('b')
+# Use TSNE to visualize embeddings in 2D
+embs_2d = TSNE(n_components=2, n_iter=10000).fit_transform(np.array(embs))
 
-voice_vectors = np.array(voice_vectors)
-
-print(voice_vectors.shape)
-
-vv_trans = TSNE(n_components=2, n_iter=10000).fit_transform(voice_vectors)
-
-def stuff(**args):
+# A func to play audio files from the visualization
+def on_click(**args):
     idx = args['ind'][0]
     os.system('start ' + labels[idx])
     return str(labels[idx])
 
-plt.scatter(vv_trans[:, 0], vv_trans[:, 1], c=colors, marker='.')
+data_by_gender = {'female': [], 'male': [], 'other': []}
+for i in range(len(embs_2d)):
+    idx = idxs[i]
+    data = data_by_gender[meta_data[idx][1]]
+    data.append(embs_2d[i])
 
-datacursor(formatter=stuff)
+for gender in data_by_gender:
+    data = np.array(data_by_gender[gender])
+    plt.scatter(data[:, 0], data[:, 1], marker='.', label=gender)
+
+datacursor(formatter=on_click)
+plt.legend()
 plt.show()
