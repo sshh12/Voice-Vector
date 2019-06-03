@@ -1,6 +1,6 @@
 # Voice Vector
 
-> TODO
+> A one-shot siamese approach to generating voice embeddings.
 
 ## Usage
 
@@ -10,7 +10,56 @@
 
 #### Script
 
-`TODO`
+See [demo.py](https://github.com/sshh12/Voice-Vector/blob/master/demo.py) for the complete script.
+
+```python
+ # A sample rate of 16k is required
+RATE = 16000
+# The current model uses 2 second frames of audio
+WINDOW_SIZE = 2
+
+audio_files, meta_data = common_voice_data()
+
+embs = []
+colors = []
+labels = []
+
+for i, audio_fn in enumerate(audio_files):
+
+    meta = meta_data[i]
+
+    # Read audio data as numpy array
+    audio_data = wav.read(audio_fn)[1].astype(np.uint16)
+
+    # Trim since speakers normally have a buffer before/after
+    audio_data = audio_data[1000:-1000]
+
+    speaker_embs = []
+
+    for k in range(0, len(audio_data), RATE):
+
+        # Generate embeddings for subsections of audio file
+        audio_part = audio_data[i:i+RATE*WINDOW_SIZE]
+        if len(audio_part) != RATE * WINDOW_SIZE:
+            break
+
+        # Generate an embedding for this 2s of audio data
+        speaker_embs.append(voice_embs.get_vec(audio_part))
+
+    if len(speaker_embs) == 0:
+        continue
+
+    # Use the median embedding to represent the speaker
+    embs.append(np.median(speaker_embs, axis=0))
+    labels.append(audio_fn)
+    colors.append('r' if meta[1] == 'female' else 'b')
+
+# Use TSNE to visualize embeddings in 2D
+embs_2d = TSNE(n_components=2, n_iter=10000).fit_transform(np.array(embs))
+
+plt.scatter(embs_2d[:, 0], embs_2d[:, 1], c=colors, marker='.')
+plt.show()
+```
 
 ## DIY
 
