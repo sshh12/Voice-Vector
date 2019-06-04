@@ -58,23 +58,13 @@ for i, audio_fn in tqdm(enumerate(audio_files), total=len(audio_files)):
     # Trim since speakers normally have a buffer before/after
     audio_data = audio_data[1000:-1000]
 
-    speaker_embs = []
+    speaker_emb = voice_embs.get_median_vec(audio_data)
 
-    for k in range(0, len(audio_data), RATE):
-
-        # Generate embeddings for subsections of audio file
-        audio_part = audio_data[i:i+RATE*WINDOW_SIZE]
-        if len(audio_part) != RATE * WINDOW_SIZE:
-            break
-
-        # Generate an embedding for this 2s of audio data
-        speaker_embs.append(voice_embs.get_vec(audio_part))
-
-    if len(speaker_embs) == 0:
+    if speaker_emb is None:
         continue
 
     # Use the median embedding to represent the speaker
-    embs.append(np.median(speaker_embs, axis=0))
+    embs.append(speaker_emb)
     labels.append(audio_fn)
     idxs.append(i)
 
@@ -93,10 +83,12 @@ for i in range(len(embs_2d)):
     data = data_by_gender[meta_data[idx][1]]
     data.append(embs_2d[i])
 
+max_displayed = min(len(data_by_gender['female']), len(data_by_gender['male']))
 for gender in data_by_gender:
-    data = np.array(data_by_gender[gender])
+    data = np.array(data_by_gender[gender])[:max_displayed]
     plt.scatter(data[:, 0], data[:, 1], marker='.', label=gender)
 
 datacursor(formatter=on_click)
+plt.title('Voice Embeddings by Gender')
 plt.legend()
 plt.show()

@@ -18,9 +18,9 @@ import os
 from models import get_siamese_model
 
 
-INPUT_SHAPE = (252, 400, 1)
-SPEC_MEAN = 0.305
-SPEC_STD = 0.177
+INPUT_SHAPE = (251, 400, 1)
+SPEC_MEAN = 0.301
+SPEC_STD = 0.181
 FEATURE_CACHE_SIZE = 256
 
 
@@ -84,7 +84,8 @@ class VoxCelebDataGenerator(Sequence):
 @functools.lru_cache(FEATURE_CACHE_SIZE)
 def _load_features(feats_fn):
     """Load and normalize spectrograms from fn"""
-    return (np.load(feats_fn) - SPEC_MEAN) / SPEC_STD
+    # Load as (n, timesteps, freq), ignore last timestamp
+    return (np.load(feats_fn)[:, :-1, :] - SPEC_MEAN) / SPEC_STD
 
 
 def _pick_random_other(value, all_values):

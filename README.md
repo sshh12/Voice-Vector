@@ -39,7 +39,7 @@ for i, audio_fn in enumerate(audio_files):
     for k in range(0, len(audio_data), RATE):
 
         # Generate embeddings for subsections of audio file
-        audio_part = audio_data[i:i+RATE*WINDOW_SIZE]
+        audio_part = audio_data[k:k+RATE*WINDOW_SIZE]
         if len(audio_part) != RATE * WINDOW_SIZE:
             break
 

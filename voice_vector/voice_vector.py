@@ -12,10 +12,13 @@ pwr_to_db = librosa.core.power_to_db
 
 VV_MODEL_FN = resource_filename(__name__, 'data/vv_best.h5')
 SHAPE = (252, 400, 1)
+RATE = 16000
+WINDOW_SIZE = 2
+SPEC_SIZE = SHAPE[0]
 
 # Precomputed stats for normalization
-SPEC_MEAN = 0.305
-SPEC_STD = 0.177
+SPEC_MEAN = 0.301
+SPEC_STD = 0.181
 
 
 class VoiceEmbeddings:
@@ -25,7 +28,7 @@ class VoiceEmbeddings:
         Create a voice vector generator.
         """
         # For now only this is supported.
-        assert rate == 16000
+        assert rate == RATE
         self.rate = rate
 
         if model_fn is None:
@@ -33,28 +36,53 @@ class VoiceEmbeddings:
 
         self.model = load_model(model_fn)
 
-    def _patch_shape(self, spec):
-        """Fix for bug where shape is one off"""
-        if len(spec) == SHAPE[0] - 1:
-            fixed_spec = np.append(spec, [spec[-1, :]], axis=0)
-        else:
-            fixed_spec = spec
-        return fixed_spec.reshape(*SHAPE)
+    def _compute_spectrogram(self, frame):
+        melspec = do_melspec(y=frame.astype(np.float32), sr=self.rate, n_mels=416, fmax=4000, hop_length=128)
+        norm_melspec = pwr_to_db(melspec, ref=np.max)
+        return np.transpose((1 - (norm_melspec / -80.0))[:-16, :])
+
+    def get_median_vec(self, large_frame):
+        """
+        Compute the median voice vector for audio frame.
+
+        `large_frame` is a numpy array of >=2 seconds of single channel
+        audio data at a 16k sample rate. See `demo.py` for a basic example.
+        """
+        if len(large_frame) < RATE * WINDOW_SIZE:
+            return None
+
+        large_spec = self._compute_spectrogram(large_frame)
+        size = len(large_spec)
+        specs = []
+
+        for k in range(0, size, SPEC_SIZE // 2):
+
+            if k + SPEC_SIZE > size:
+                k = size - SPEC_SIZE
+
+            spec_part = large_spec[k:k+SPEC_SIZE]
+            spec_part = spec_part.reshape(*SHAPE)
+
+            specs.append(spec_part)
+
+        specs = (np.array(specs) - SPEC_MEAN) / SPEC_STD
+
+        preds = self.model.predict(specs)
+
+        return np.median(preds, axis=0)
 
     def get_vecs(self, frames):
         """
         Convert 2 second frames of voice data to voice vectors.
 
         `frames` must be an array of numpy arrays containing 2 seconds of single channel
-        audio data at a 16k sample rate. See `demo.py` for a basic example.
+        audio data at a 16k sample rate.
         """
         specs = []
 
         for frame in frames:
-            melspec = do_melspec(y=frame.astype(np.float32), sr=self.rate, n_mels=416, fmax=4000, hop_length=128)
-            norm_melspec = pwr_to_db(melspec, ref=np.max)
-            spectrogram = np.transpose((1 - (norm_melspec / -80.0))[:-16, :])
-            spectrogram = self._patch_shape(spectrogram)
+            assert len(frame) == RATE * WINDOW_SIZE
+            spectrogram = self._compute_spectrogram(frame).reshape(*SHAPE)
             specs.append((spectrogram - SPEC_MEAN) / SPEC_STD)
 
         preds = self.model.predict(np.array(specs))
@@ -63,4 +91,5 @@ class VoiceEmbeddings:
 
     def get_vec(self, frame):
         """Like get_vecs(...) for for a single frame."""
+        assert len(frame) == RATE * WINDOW_SIZE
         return self.get_vecs([frame])[0]

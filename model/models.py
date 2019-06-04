@@ -5,22 +5,22 @@ Many snippets borrowed from:
 https://github.com/akshaysharma096/Siamese-Networks/
 """
 from keras.models import Sequential, Model, load_model
-from keras.regularizers import l2
-from keras.optimizers import Adam
-from keras.layers import Input, Lambda, Dense, MaxPooling2D, Conv2D, Flatten
+from keras.regularizers import *
+from keras.optimizers import *
+from keras.layers import *
 import keras.backend as K
 import numpy as np
 import click
 
 
-INPUT_SHAPE = (252, 400, 1)
+INPUT_SHAPE = (251, 400, 1)
 
 
 def _add_conv_block(model, filters, size, **kwargs):
     model.add(Conv2D(filters, (size, size),
-                     activation='relu',
                      kernel_regularizer=l2(2e-4),
                      **kwargs))
+    model.add(LeakyReLU())
     model.add(MaxPooling2D())
 
 
@@ -30,6 +30,7 @@ def create_feature_model(input_shape):
     _add_conv_block(model, 64, 11, input_shape=input_shape)
     _add_conv_block(model, 128, 7)
     _add_conv_block(model, 256, 5)
+    _add_conv_block(model, 256, 3)
     _add_conv_block(model, 256, 3)
     model.add(Flatten())
     model.add(Dense(1024, activation='sigmoid'))
@@ -48,7 +49,7 @@ def make_siamese(input_shape, feat_model, compile_model=True):
     L1Layer = Lambda(lambda feats: K.abs(feats[0] - feats[1]))
     dist_tensor = L1Layer([a_encoded, b_encoded])
 
-    pred = Dense(1, activation='sigmoid', bias_initializer=_init_bias)(dist_tensor)
+    pred = Dense(1, activation='sigmoid')(dist_tensor)
 
     siamese_model = Model(inputs=[a_input, b_input], outputs=pred)
 
