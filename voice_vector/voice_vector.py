@@ -11,7 +11,7 @@ pwr_to_db = librosa.core.power_to_db
 
 
 VV_MODEL_FN = resource_filename(__name__, 'data/vv_best.h5')
-SHAPE = (252, 400, 1)
+SHAPE = (251, 400, 1)
 RATE = 16000
 WINDOW_SIZE = 2
 SPEC_SIZE = SHAPE[0]

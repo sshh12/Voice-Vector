@@ -6,11 +6,13 @@
 
 #### Install
 
-`TODO`
+`pip install https://github.com/sshh12/Voice-Vector/releases/download/v0.1.0/voice-vector-0.1.0.tar.gz`
 
 #### Script
 
 See [demo.py](https://github.com/sshh12/Voice-Vector/blob/master/demo.py) for the complete script.
+
+Uses the [Common Voice Dataset](https://voice.mozilla.org/en).
 
 ```python
  # A sample rate of 16k is required
@@ -61,7 +63,7 @@ plt.scatter(embs_2d[:, 0], embs_2d[:, 1], c=colors, marker='.')
 plt.show()
 ```
 
-![TSNE](https://user-images.githubusercontent.com/6625384/58771441-cf7b1d80-8579-11e9-917d-ad2cc898254f.png)
+![TSNE](https://user-images.githubusercontent.com/6625384/58922114-2fe79780-86ff-11e9-9b45-33ee1c7a342d.png)
 
 ## DIY
 
