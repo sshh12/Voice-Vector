@@ -30,7 +30,7 @@ setup(
     url='https://github.com/sshh12/Voice-Vector',
     packages=find_packages(),
     package_data={
-        'conv_vad': [
+        'voice_vector': [
             'data/vv_best.h5'
         ]
     },
