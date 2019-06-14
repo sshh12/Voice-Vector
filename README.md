@@ -8,19 +8,37 @@
 
 `pip install https://github.com/sshh12/Voice-Vector/releases/download/v0.1.0/voice-vector-0.1.0.tar.gz`
 
-#### Script
+#### Usage
 
-See [demo.py](https://github.com/sshh12/Voice-Vector/blob/master/demo.py) for the complete script.
-
-Uses the [Common Voice Dataset](https://voice.mozilla.org/en).
+##### API
 
 ```python
+import voice_vector
+
+voice_embs = voice_vector.VoiceEmbeddings()
+
+# Frames are numpy arrays of 16k single channel audio data.
+median_emb = voice_embs.get_median_vec(large_frame)
+embs       = voice_embs.get_vecs(frames)
+emb        = voice_embs.get_vec(frame)
+```
+
+##### Demo
+
+See [demo.py](https://github.com/sshh12/Voice-Vector/blob/master/demo.py) for the complete script. Uses the [Common Voice Dataset](https://voice.mozilla.org/en).
+
+```python
+...
+import voice_vector
+
  # A sample rate of 16k is required
 RATE = 16000
 # The current model uses 2 second frames of audio
 WINDOW_SIZE = 2
 
 audio_files, meta_data = common_voice_data()
+
+voice_embs = voice_vector.VoiceEmbeddings()
 
 embs = []
 colors = []
