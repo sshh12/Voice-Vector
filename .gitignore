@@ -106,3 +106,8 @@ venv.bak/
 # Models
 *.h5
 logs/
+
+# Dev Stuff
+.vscode/*
+.vs/*
+tb.bat
