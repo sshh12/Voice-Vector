@@ -16,9 +16,9 @@ import voice_vector
 voice_embs = voice_vector.VoiceEmbeddings()
 
 # Frames are numpy arrays of 16k single channel audio data.
-median_emb = voice_embs.get_median_vec(large_frame)
-embs       = voice_embs.get_vecs(frames)
-emb        = voice_embs.get_vec(frame)
+mean_emb = voice_embs.get_mean_vec(large_frame)
+embs     = voice_embs.get_vecs(frames)
+emb      = voice_embs.get_vec(frame)
 ```
 
 ##### Demo
@@ -67,8 +67,8 @@ for i, audio_fn in enumerate(audio_files):
     if len(speaker_embs) == 0:
         continue
 
-    # Use the median embedding to represent the speaker
-    embs.append(np.median(speaker_embs, axis=0))
+    # Use the mean embedding to represent the speaker
+    embs.append(np.mean(speaker_embs, axis=0))
     labels.append(audio_fn)
     colors.append('r' if meta[1] == 'female' else 'b')
 

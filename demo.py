@@ -44,7 +44,7 @@ def common_voice_data():
 
 print('Finding Common Voice files...', end='')
 audio_files, meta_data = common_voice_data()
-print('found {}'.format(len(audio_files)))
+print('found {}.'.format(len(audio_files)))
 
 embs = []
 idxs = []
@@ -58,12 +58,12 @@ for i, audio_fn in tqdm(enumerate(audio_files), total=len(audio_files)):
     # Trim since speakers normally have a buffer before/after
     audio_data = audio_data[1000:-1000]
 
-    speaker_emb = voice_embs.get_median_vec(audio_data)
+    speaker_emb = voice_embs.get_mean_vec(audio_data)
 
     if speaker_emb is None:
         continue
 
-    # Use the median embedding to represent the speaker
+    # Use the mean embedding to represent the speaker
     embs.append(speaker_emb)
     labels.append(audio_fn)
     idxs.append(i)

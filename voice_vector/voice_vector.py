@@ -41,9 +41,9 @@ class VoiceEmbeddings:
         norm_melspec = pwr_to_db(melspec, ref=np.max)
         return np.transpose((1 - (norm_melspec / -80.0))[:-16, :])
 
-    def get_median_vec(self, large_frame):
+    def get_mean_vec(self, large_frame):
         """
-        Compute the median voice vector for audio frame.
+        Compute the mean voice vector for audio frame.
 
         `large_frame` is a numpy array of >=2 seconds of single channel
         audio data at a 16k sample rate. See `demo.py` for a basic example.
@@ -69,7 +69,7 @@ class VoiceEmbeddings:
 
         preds = self.model.predict(specs)
 
-        return np.median(preds, axis=0)
+        return np.mean(preds, axis=0)
 
     def get_vecs(self, frames):
         """
