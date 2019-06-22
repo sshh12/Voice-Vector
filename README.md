@@ -6,7 +6,7 @@
 
 ##### Install
 
-`pip install https://github.com/sshh12/Voice-Vector/releases/download/v0.1.0/voice-vector-0.1.0.tar.gz`
+`pip install https://github.com/sshh12/Voice-Vector/releases/download/v0.1.1/voice-vector-0.1.1.tar.gz`
 
 ##### API
 
